@@ -1,0 +1,12 @@
+name: f25-703-HW1
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.10.12
+  - pytorch=2.0.1
+  - matplotlib=3.7.1
+  - pip
+  - pip:
+    - gymnasium==0.29.1
