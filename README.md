@@ -1,4 +1,4 @@
-# MRSD Project II
+# Deep Reinforcement Learning
 Subject Name: Deep Reinforcement Learning  
 Subject Code: 10703-A  
 Semester Taken: Fall 2025  
