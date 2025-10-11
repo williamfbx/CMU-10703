@@ -1,0 +1,1117 @@
+
+\documentclass[12pt]{article}
+\usepackage{amsmath, amssymb, amsthm, enumerate, graphicx}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{bm}
+\usepackage[strings]{underscore}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{minted}
+\usepackage{enumerate}
+\usepackage{fancyvrb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\usepackage{placeins}
+\usepackage{tikz}
+\usepackage{tikzsymbols}
+\usepackage{todonotes}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{wrapfig}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{float}
+\usepackage{graphics}
+\setlength{\marginparwidth}{2.15cm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{epsfig}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage[normalem]{ulem}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows, automata}
+\usepackage[font=scriptsize]{subcaption}
+\usepackage{float}
+
+\usepackage{environ}
+\usepackage{bbm}
+\usepackage{graphicx}
+\usepackage{titling}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{lipsum}
+\usepackage{lastpage}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\usepackage{multicol}
+\usepackage{tabularx}
+\usepackage{comment}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+\usepackage{setspace}
+\usepackage{wrapfig}
+\usepackage{datetime}
+
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wasysym}
+\usepackage{cancel}
+
+\usepackage{listings}
+\usepackage{color}
+\usepackage[thinlines]{easytable}
+\usepackage{lastpage}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\blackcircle}{\tikz\draw[black,fill=black] (0,0) circle (1ex);}
+\renewcommand{\circle}{\tikz\draw[black] (0,0) circle (1ex);}
+
+
+\usetikzlibrary{positioning,calc}
+
+\newtcolorbox[]{solution}[1][]{%
+    breakable,
+    enhanced,
+    colback=white,
+    title=Solution,
+    #1
+}
+
+\begin{document}
+\begin{center}
+  {\LARGE\bfseries Homework 3\par}
+  \vspace{0.6ex}
+  {\large CMU 10–703: Deep Reinforcement Learning (Fall 2025)\par}
+  \vspace{0.8ex}
+  {\normalsize \textbf{OUT:} September 23\textsuperscript{rd}\par}
+  {\normalsize \textbf{DUE:} October 1\textsuperscript{th} by 11:59\,pm ET\par}
+\end{center}
+
+\section*{Instructions: START HERE}
+\begin{itemize}
+\item \textbf{Collaboration policy:} You may work in groups of up to three people for this assignment. It is also OK to get clarification (but not solutions) from books or online resources after you have thought about the problems on your own.  You are expected to comply with the University Policy on Academic Integrity and Plagiarism\footnote{\url{https://www.cmu.edu/policies/}}.
+
+\item\textbf{Late Submission Policy:} You are allowed a total of 10 grace days for your homeworks. However, no more than 2 grace days may be applied to a single assignment. Any assignment submitted after 2 days will not receive any credit.  Grace days do not need to be requested or mentioned in emails; we will automatically apply them to students who submit late. We will not give any further extensions so make sure you only use them when you are absolutely sure you need them.  See the Assignments and Grading Policy for more information about grace days and late submissions \footnote{\url{https://cmudeeprl.github.io/703website_f25/logistics/}}
+
+\item\textbf{Submitting your work:} 
+
+\begin{itemize}
+
+\item \textbf{Gradescope:} Please write your answers and copy your plots into the provided LaTeX template, and upload a PDF to the GradeScope assignment titled ``Homework 3.'' Additionally, export your code ([File $\rightarrow$ Export .py (if using Colab notebook)]) and upload it the GradeScope assignment titled ``Homework 3: Code.'' Each team should only upload one copy of each part. Regrade requests can be made within one week of the assignment being graded.
+
+\end{itemize}
+\end{itemize}
+
+\newpage
+
+\section*{Introduction}
+In Homework 1, you implemented foundational policy gradient algorithms such as REINFORCE and Advantage Actor-Critic (A2C). In this assignment, you will extend those ideas by implementing three widely used modern policy gradient algorithms: \href{https://arxiv.org/abs/1707.06347}{Proximal Policy Optimization (PPO)}, \href{https://arxiv.org/abs/1802.09477}{Twin Delayed Deep Deterministic Policy Gradient (TD3)}, and \href{https://arxiv.org/abs/1801.01290}{Soft Actor-Critic (SAC)}. Among these, PPO and SAC in particular have become essential algorithms in deep reinforcement learning research and applications.
+
+Note - Make sure to take a look at the \texttt{ReadMe.md} to set up your conda environment for this homework assignment.
+
+\section*{Problem 0: Collaborators}
+Please list your name and Andrew ID, as well as the names and Andrew IDs of your collaborators.
+
+\section*{Problem 1: Proximal Policy Optimization (50 pts)}
+
+Begin by reading the PPO paper (\url{https://arxiv.org/abs/1707.06347}) to familiarize yourself with the method you will implement. For this problem, you will focus on implementing Equations (7), (8), and (9) from the paper.
+
+PPO improves upon the standard policy gradient algorithms from Homework 1 (REINFORCE and A2C) by introducing a more stable and efficient update mechanism. To appreciate this contribution, recall the limitations of earlier approaches:
+\begin{itemize}
+    \item \textbf{REINFORCE}: A pure Monte-Carlo method that estimates gradients directly from sampled returns. It suffers from high variance, making training slow and unstable.
+    \item \textbf{A2C (Advantage Actor-Critic)}: Reduces variance by incorporating a learned value function baseline, but still permits large, destabilizing policy updates.
+\end{itemize}
+
+PPO addresses this instability by constraining policy updates. Rather than maximizing the raw policy gradient, PPO optimizes a clipped surrogate objective that limits how much the probability ratio between new and old policies can change. This constraint yields more conservative updates, preventing destructive shifts while maintaining the simplicity of first-order gradient optimization. \\
+\noindent
+All of your code for this problem will be written in \texttt{ppo\_agent.py}.
+
+\subsection*{Problem 1.1: PPO Loss}
+
+Because PPO is an actor-critic method, its loss function contains both an actor (policy) component and a critic (value) component. PPO’s innovation lies in how the actor loss is defined, ensuring stability during training.
+
+\subsubsection*{Problem 1.1.1: Clipped Policy Objective}
+
+The standard policy gradient objective arises from the need to improve the policy $\pi_\theta$ while reusing data collected under an older policy $\pi_{\theta_{\text{old}}}$. Since trajectories are generated using $\pi_{\theta_{\text{old}}}$, we cannot directly evaluate expectations under the new policy. To correct this mismatch, we use importance sampling. Intuitively, if the new policy assigns higher probability to an action than the old policy did, that sample is upweighted; if it assigns lower probability, it is downweighted. This correction makes the gradient estimator unbiased with respect to the new policy, even though the data came from the old one.  
+
+Formally, the standard policy gradient objective is:
+
+\begin{equation}
+J(\theta) = \mathbb{E}_{\tau \sim \pi_{\theta_{\text{old}}}} \left[ \sum_{t=0}^{T-1} \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} \hat{A}_t \right],
+\end{equation}
+
+where $\hat{A}_t$ is the estimated advantage at timestep $t$. The advantage weighting ensures that actions with positive advantage are reinforced while those with negative advantage are discouraged. While this formulation is unbiased, it can become unstable when the ratio takes extreme values:
+\begin{enumerate}
+    \item Large or small ratios introduce high variance into the gradient estimate.
+    \item Large updates can push the policy into poorly performing parameter space regions.
+    \item The advantage estimates $\hat{A}_t$, computed under the old policy, may not remain reliable if the new policy is too different.
+\end{enumerate}
+
+\noindent
+To address this, PPO defines the clipped surrogate objective (Equation 7 in the paper). Let
+
+\begin{equation}
+r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)},
+\end{equation}
+
+then the clipped objective is:
+
+\begin{equation}
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min\!\Big(r_t(\theta) \hat{A}_t, \, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t\Big) \right],
+\end{equation}
+
+where $\epsilon$ is a hyperparameter.  The \texttt{clip} keeps the probability ratio $r_t(\theta)$ bounded between $1-\epsilon$ and $1+\epsilon$. Sometimes the unclipped ratio $r_t(\theta)\hat{A}_t$ is more conservative than the clipped version, so the $\min$ operator selects whichever is smaller.
+
+This design guarantees conservative updates in both directions:
+\begin{itemize}
+    \item If $\hat{A}_t > 0$, $L^{CLIP}$ prevents the policy from increasing the probability of an action too aggressively.
+    \item If $\hat{A}_t < 0$, $L^{CLIP}$ prevents the policy from reducing the probability of an action too aggressively.
+\end{itemize}
+
+You should convince yourself by examining the equations that this conservative behavior always holds, regardless of the sign of the advantage.
+
+
+\noindent
+Implement this clipped objective in \texttt{section 1.1.1} of the \texttt{PPOAgent.\_ppo\_loss(...)} function.
+
+\textit{Hint:} Use the old and new log probabilities (already defined for you) to compute the ratio.  Additionally, in the code $\epsilon$ is saved as \texttt{self.clip\_coef}.
+
+\newpage
+
+\subsubsection*{Problem 1.1.2: Complete PPO Loss Function}
+
+The full PPO loss augments the clipped policy loss with a value function loss and an entropy bonus. From Equation 9 of the PPO paper, the combined objective is:
+
+\begin{equation}
+L_t^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_t \left[ L_t^{CLIP}(\theta) - c_1 L_t^{VF}(\theta) + c_2 S[\pi_\theta](s_t) \right],
+\end{equation}
+
+where
+\begin{align}
+L_t^{VF}(\theta) &= \big(V_\theta(s_t) - V_t^{\text{targ}}\big)^2 \quad &\text{(value function loss)}, \\
+S[\pi_\theta](s_t) &= -\sum_a \pi_\theta(a|s_t) \log \pi_\theta(a|s_t) \quad &\text{(entropy bonus)}.
+\end{align}
+
+Here $V_t^{\text{targ}}$ is the target value (commonly the empirical return $G_t$), and $c_1, c_2$ are scalar weights balancing the critic loss and entropy bonus.
+
+\noindent
+\textbf{Components of the PPO Loss:}
+\begin{itemize}
+    \item \textbf{Policy Loss}: Encourages improved actions while constraining updates to remain close to the old policy.
+    \item \textbf{Value Function Loss}: Trains the critic to provide accurate value estimates for advantage computation.
+    \item \textbf{Entropy Bonus}: Encourages exploration and prevents premature convergence to deterministic policies.
+\end{itemize}
+
+\noindent
+Implement this combined loss in \texttt{section 1.1.2} of the \texttt{PPOAgent.\_ppo\_loss(...)} function.
+
+\texttt{Hint:} Use \texttt{self.vf_coef} and \texttt{self.clip_coef}.  Pay attention to the signs in your total loss function.  The sign conventions presented in the paper (and copied above) may be a bit confusing.  Remember that pytorch minimizes loss.  For your value function targets, you can directly use the \texttt{returns} variable that we define at the top of the loss function (you will be calculating these returns in the next question).
+
+% \section*{Introduction}
+% In the first homework you implemented some basic policy gradient algorithms - REINFORCE and Actor Critic methods. For this homework you will be implementing three advanced policy gradient algorithms: \href{https://arxiv.org/abs/1707.06347}{Proximal Policy Optimization} (PPO), \href{https://arxiv.org/abs/1802.09477}{TD3}, and \href{https://arxiv.org/abs/1801.01290}{Soft-Actor Critic} (SAC). PPO and SAC especially are some of the most widely used deep reinforcement learning algorithms, so it is important to understand the foundations of these models and how they are implemented.
+
+% \section*{Problem 0: Collaborators}
+% Please list your name and Andrew ID, as well as those of your collaborators.
+
+% \section*{Problem 1: Proximal Policy Optimization - PPO (48 pts)}
+
+% Start by reading the PPO paper (\url{https://arxiv.org/abs/1707.06347}) to make sure you understand the method that you will be implementing. In this homework you will be implementing equations 7, 8, and 9 from that paper. Proximal Policy Optimization (PPO) improves on the standard policy gradient methods that you implemented in HW1 (REINFORCE and A2C) by introducing a more stable and efficient way to update policies. Let's review why this improvement is necessary:
+% \begin{itemize}
+% \item \textbf{REINFORCE} is a pure Monte Carlo method that directly estimates gradients from sampled returns, which leads to high variance and slow learning.
+% \item \textbf{A2C (Advantage Actor-Critic)} reduces variance by using a learned value function as a baseline, but it still suffers from instability because large policy updates can drastically change the behavior of the agent.
+% \end{itemize}
+% PPO addresses the instability problem by constraining updates: instead of maximizing the raw policy gradient, it uses a clipped surrogate objective that penalizes changes to the policy probability ratio if they move too far from the old policy. This prevents destructive updates, making PPO both more stable and sample-efficient while retaining the simplicity of first-order gradient methods. \\ \\
+% For this problem, all of your code will be written in \texttt{ppo_agent.py}.
+
+
+
+% \subsection*{Problem 1.1: PPO Loss}
+% PPO is an actor-critic method, so our loss function will have terms for both the actor network and the critic network. But the innovation of PPO is in how it constructs the policy loss to ensure stable learning.
+
+% To understand why PPO's clipped objective is necessary, let's first examine the fundamental challenge in policy gradient methods. The standard policy gradient objective maximizes:
+
+% \begin{equation}
+% J(\theta) = \mathbb{E}_{\tau \sim \pi_{\theta_{\text{old}}}} \left[ \sum_{t=0}^{T-1} \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} \hat{A}_t \right]
+% \end{equation}
+
+% This objective uses importance sampling to reweight actions from the old policy $\pi_{\theta_{\text{old}}}$ according to the new policy $\pi_\theta$. The ratio $\frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}$ tells us how much more (or less) likely the action $a_t$ is under the new policy compared to the old policy.
+
+% The problem arises when this ratio becomes very large or very small. If $\pi_\theta(a_t|s_t) \gg \pi_{\theta_{\text{old}}}(a_t|s_t)$ and $\hat{A}_t > 0$, the gradient update will be enormous, potentially causing the policy to change drastically. This can lead to poor performance because:
+
+% \begin{enumerate}
+%     \item The importance sampling estimate becomes high variance when ratios are extreme
+%     \item Large policy changes can move the agent into regions of poor performance
+%     \item The advantage estimates $\hat{A}_t$ were computed under the old policy and may not be reliable for the dramatically different new policy
+% \end{enumerate}
+
+
+% \subsubsection*{Problem 1.1.1: PPO Objective Loss (Clipped)}
+
+% PPO solves this problem by constraining how much the policy can change in a single update. The clipped objective, presented in Equation 7 of the PPO paper, provides a simple and effective way to enforce this constraint. \\
+
+% Define the probability ratio as:
+% \begin{equation}
+% r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
+% \end{equation}
+
+% The clipped surrogate objective is:
+% \begin{equation}
+% L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t) \right]
+% \end{equation}
+
+% where $\epsilon$ is a hyperparameter (typically 0.1 or 0.2) that controls the clipping range.
+% \\
+
+% The clipping function ensures that $r_t(\theta)$ stays within $[1-\epsilon, 1+\epsilon]$, meaning the new policy cannot be too different from the old policy. The minimum operation provides different behavior depending on the sign of the advantage.  This design ensures that:
+% \begin{itemize}
+%     \item Good actions have their probabilities increased, but not by more than a factor of $(1+\epsilon)$
+%     \item Bad actions have their probabilities decreased, but not by more than a factor of $(1-\epsilon)$
+%     \item The policy update is always conservative, preventing destructive changes
+% \end{itemize}
+
+% Implement this clipped objective in \texttt{section 1.1.1} of the \texttt{\_ppo\_loss(...)} function.
+
+% \subsubsection*{Problem 1.1.2: Complete PPO Loss Function}
+
+% The complete PPO loss function combines the policy loss with a value function loss and an entropy bonus. Because PPO is an actor critic method, we need the value function loss to help train the critic head of our network (which will be used for computing advantages in the next section).  The entropy bonus is an optionally addition, but it is included as this encourages exploration and prevents the policy from becoming too deterministic too quickly. 
+
+% From Equation 9 in the PPO paper, the complete objective is:
+% \begin{equation}
+% L_t^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_t \left[ L_t^{CLIP}(\theta) - c_1 L_t^{VF}(\theta) + c_2 S[\pi_\theta](s_t) \right]
+% \end{equation}
+
+% where:
+% \begin{align}
+% L_t^{VF}(\theta) &= (V_\theta(s_t) - V_t^{\text{targ}})^2 \quad \text{(value function loss)} \\
+% S[\pi_\theta](s_t) &= -\sum_a \pi_\theta(a|s_t) \log \pi_\theta(a|s_t) \quad \text{(entropy bonus)}
+% \end{align}
+
+% Here, $V_t^{\text{targ}}$ is the target value (typically the empirical return $G_t$), $c_1$ and $c_2$ are hyperparameters controlling the relative importance of the value function loss and entropy bonus respectively. \\
+% \\
+% \noindent
+% \textbf{Understanding the Components:}
+% \begin{itemize}
+% \item \textbf{Policy Loss}: Drives the policy to take better actions while staying close to the old policy
+% \item \textbf{Value Function Loss}: Trains the critic to accurately estimate state values for advantage computation
+% \item \textbf{Entropy Bonus}: Maintains exploration by preventing the policy from becoming too deterministic
+% \end{itemize}
+% In \texttt{section 1.1.2} of the \texttt{\_ppo\_loss(...)} function, please implement the complete loss function combining all three terms.
+
+\newpage
+
+\subsection*{Problem 1.2: Generalized Advantage Estimation}
+During our loss computation, we assume access to advantage estimates $\hat{A}_t$ and returns (new targets for the value function). In HW1, you implemented advantage estimates with $N$-step bootstrapping, for this homework you will be implementing a more commonly used method, \href{https://arxiv.org/abs/1506.02438}{Generalized Advantage Estimation} (GAE). While N-step bootstrapping requires selecting a fixed horizon N, GAE instead uses a parameter $\lambda$ to combine advantages across all horizons, offering a smoother bias–variance tradeoff. 
+\\
+\\
+GAE's parameter $\lambda \in [0,1]$ allows us to balance between bias and variance in our advantage estimates. The GAE advantage estimator is defined as:
+\begin{equation}
+\hat{A}_t^{GAE(\gamma,\lambda)} = \sum_{l=0}^{\infty} (\gamma\lambda)^l \delta_{t+l}
+\end{equation}
+
+\noindent
+where $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ is the temporal difference (TD) error.
+
+\noindent
+In practice, for a finite episode of length $T$, this becomes:
+\begin{equation}
+\hat{A}_t^{GAE(\gamma,\lambda)} = \sum_{l=0}^{T-t-1} (\gamma\lambda)^l \delta_{t+l}
+\end{equation}
+
+\noindent
+This can be computed efficiently using the recursive relation:
+\begin{align}
+\hat{A}_t &= \delta_t + \gamma\lambda \hat{A}_{t+1} \\
+\hat{A}_{T-1} &= \delta_{T-1}
+\end{align}
+
+
+With the above formulation, it should be clear how a smaller $\lambda$ brings the GAE closer to 1-step TD (lower variance, but higher bias).  Similarly, a large $\lambda$ brings the GAE close to the Monte Carlo estimate (higher variance but lower bias)  \\
+
+
+Implement GAE in \texttt{section 1.2} of your code in the function \texttt{PPOAgent.\_compute\_gae(...)}. \\
+
+\noindent
+\textbf{Note:} The above formulation assumes a continuous environment.  However, we are working in an environment with terminal states.  If the final state has a \texttt{done} flag - this means that we have reached a terminal state (success or failure).  If not, this means that the environment was truncated due to time limits before reaching a terminal state.  Think about what needs to happen at these final states - when should we be using a value function estimate for $s_{t+1}$?
+
+\texttt{Hint:} After calculating the advantages, the computation of the returns is a simple formula.
+
+
+\newpage
+
+\subsection*{Problem 1.3: PPO Update Loop}
+
+A central feature of Proximal Policy Optimization (PPO) is its training procedure, which alternates between data collection and policy updates. In each iteration, PPO collects trajectories (or rollouts) using the current policy, then repeatedly optimizes the actor and critic networks through mini-batch gradient descent. The canonical PPO algorithm, as presented in the original paper (Algorithm 1), is shown below:
+
+\begin{algorithm}
+\caption{PPO Algorithm (Canonical)\label{alg:ppo_canonical}}
+\begin{algorithmic}[1]
+\Procedure{PPO, Actor-Critic Style}{}
+\State $\textbf{for } \textit{iteration} = 1, 2, \ldots \textbf{ do}$
+\State $\qquad\textbf{for } \textit{actor} = 1, 2, \ldots, N \textbf{ do}$
+\State $\qquad\qquad\textit{Run policy } \pi_{\theta_{\text{old}}} \textit{ in environment for } T \textit{ timesteps}$
+\State $\qquad\qquad\textit{Compute advantage estimates } \hat{A}_1, \ldots, \hat{A}_T$
+\State $\qquad\textbf{end for}$
+\State $\qquad\textit{Optimize surrogate } L \textit{ wrt } \theta, \textit{ with } K \textit{ epochs and minibatch size } M \leq NT$
+\State $\qquad\theta_{\text{old}} \leftarrow \theta$
+\State $\textbf{end for}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+In this homework, the same update logic is adapted slightly to maintain compatibility across different experiments. The pseudocode below illustrates this implementation. While the structure looks different, you should convince yourself that it is functionally equivalent to the canonical PPO procedure.
+
+
+\begin{algorithm}
+\caption{PPO Training Loop (Your Implementation)\label{alg:ppo_impl}}
+\begin{algorithmic}[1]
+\Procedure{PPO Training Loop}{}
+\State $\textit{Initialize environment and actor-critic network } \pi_\theta$
+\State $\textit{Initialize rollout buffer}$
+\State $N=\textit{num steps per update}$
+\State $\textbf{while } \textit{total\_steps} < \textit{max\_steps} \textbf{ do}$
+\State $\qquad\textit{Collect rollout step by running policy }\pi_{\theta_{\text{old}}}$
+\State $\qquad\textbf{if } \textit{rollout finished} \textbf{ then}$
+\State $\qquad\qquad \textit{Compute GAE advantages } \hat{A}_1, \ldots, \hat{A}_T$
+\State $\qquad\qquad \textit{Add rollout with advantages to buffer}$
+\State $\qquad\qquad\textbf{if } \textit{steps collected with } \pi_{\theta_{\text{old}}}\geq N \textbf{ then}$
+\State $\qquad\qquad\qquad\textit{Optimize } L \textit{ wrt } \theta, \textit{ with } K \textit{ epochs and minibatch size } M \leq N$
+\State $\qquad\qquad\qquad\theta_{\text{old}} \leftarrow \theta$
+\State $\qquad\qquad\textbf{end if}$
+\State $\qquad\textbf{end if}$
+\State $\textbf{end while}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection*{Problem 1.3.1: Environment Step Function}
+Implement \texttt{PPOAgent.step(self, transition)}. 
+
+This function is executed at every environment step and is responsible for maintaining the rollout buffer, updating internal state, and triggering policy updates when necessary. Specifically:
+\begin{itemize}
+    \item When an episode terminates, compute Generalized Advantage Estimates (GAE) for the rollout.
+    \item Store the processed rollout in the buffer.
+    \item Reset the temporary rollout storage.
+    \item If the required number of steps has been reached, update the policy and relevant instance variables.
+\end{itemize}
+
+\noindent
+Useful helper functions include: \\
+\texttt{self.\_compute\_gae(...)} \\
+\texttt{self.\_prepare\_batch(...)} \\
+\texttt{self.\_rollout\_buffer.\_add\_batch(...)} \\
+\texttt{self.\_perform\_update(...)}
+
+% \subsubsection*{Problem 1.3.2: Update Function}
+% Fill out the \texttt{\_perform\_update(self)} function.  In this function, you will sample a batch from the roll-out buffer, and then train the actor and critic networks with $N$ epochs of minibatch gradient descent using your \texttt{\_ppo\_loss(...)} function.
+
+% For sampling batches, you should filter based on iteration, and only grab data from the current policy iteration.  You can do this using the filter argument of the \texttt{buffer.sample()} i.e. \texttt{filter=\{"iteration": [self.\_policy\_iteration]\}}.  This will prevent you from needing to reset the buffer every iteration.  You will play around with using some off policy data as well in the next experiments.
+
+\subsubsection*{Problem 1.3.2: Update Function}
+Implement \texttt{PPOAgent.\_perform\_update(self)}. 
+
+This function is responsible for training the actor and critic networks using data sampled from the rollout buffer. Specifically:
+\begin{itemize}
+    \item Sample minibatches corresponding to the current policy iteration, using the filter argument (e.g., \texttt{filter=\{"iteration": [self.\_policy\_iteration]\}}). 
+    \item Normalize advantages across the batch to improve stability
+    \item For each minibatch, perform gradient updates on the actor and critic for $K$ epochs using the PPO loss (\texttt{\_ppo\_loss(...)}).
+\end{itemize}
+
+\noindent
+Note: Filtering by iteration allows you to reuse the buffer without resetting it each time, enabling future experiments that incorporate more off-policy data.
+
+\textit{Hint:} You must use these lines of code in your implementation for proper logging:
+
+\begin{verbatim}
+loss, stats = self._ppo_loss(minibatch)
+all_stats.append(stats)
+\end{verbatim}
+
+You should use the following line to help with stability.  Also, our naming convention here is a bit misleading, but for PPO, \texttt{self.actor} is a network that is used both for the actor and the critic (critic just has a separate head).  
+\begin{verbatim}
+torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
+\end{verbatim}
+
+
+\newpage
+
+\subsection*{Problem 1.4: Experiment – Clipped Objective vs. KL Objective}
+
+A key design choice in PPO is how to constrain the new policy $\pi_\theta$ from moving too far away from the old policy $\pi_{\theta_{\text{old}}}$. In previous sections, we introduced the clipped surrogate objective as one way to enforce this constraint. In this section, you will compare that approach against an alternative: penalizing divergence between the two policies using the KL divergence.
+
+\subsubsection*{Problem 1.4.1: Clipped Objective}
+
+This corresponds to the loss you implemented in Section 1.1.1. Run the provided training code with the default hyperparameters and plot the resulting learning curves.  
+
+If your implementation is correct, the moving-average return (MA(50)) should approach or exceed 200 by the end of training. Note that the raw returns will be noisy, so do not be concerned about short-term oscillations. If your best-performing policy never reaches a return of 200, that indicates a mistake in your code.  
+
+You may experiment with hyperparameters if you like, but the provided defaults (including seeds) have been tested and are sufficient to achieve the expected performance.\\
+\\
+\noindent
+\textbf{TODO:} In your solution, include both the generated plots and the reported final performance.
+
+\paragraph{Command (15 min):}
+\begin{verbatim}
+python runner.py --agent ppo
+\end{verbatim}
+
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsubsection*{Problem 1.4.2: KL-Penalized Objective}
+
+Instead of clipping, another natural way to limit policy updates is to explicitly penalize divergence from the old policy. The KL divergence,
+\[
+D_{KL}\!\left(\pi_{\theta_{\text{old}}}(\cdot|s) \,\|\, \pi_\theta(\cdot|s)\right),
+\]
+measures how dissimilar the new policy is from the old one at each state. PPO incorporates this idea in an alternative objective (Equation 8 of the paper):
+\begin{equation}
+L^{KLPEN}(\theta) = \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} \hat{A}_t - \beta D_{KL}\!\left(\pi_{\theta_{\text{old}}}(\cdot|s_t) \,\|\, \pi_\theta(\cdot|s_t)\right) \right],
+\end{equation}
+Update $\beta$ as follows:
+\[
+\begin{cases}
+\beta \;\leftarrow\; \beta/2 & \text{if } d < d_{\text{targ}} / 1.5, \\
+\beta \;\leftarrow\; 2\beta & \text{if } d > d_{\text{targ}} \times 1.5. \\
+\end{cases}
+\]
+\noindent
+Here, $\hat{A}_t$ is the advantage estimate and $\beta$ is a hyperparameter that controls the strength of the KL penalty. Large deviations between old and new policies are explicitly discouraged.
+
+Implement this KL-penalized loss in \texttt{PPOAgent.\_ppo\_loss(...)} and implement the beta update in \texttt{PPOAgent.\_perform\_update(...)}.
+
+\textit{Hint:} The KL divergence can be approximated using the log ratio of old to new probabilities: $\log(\pi_{\theta_{\text{old}}}/\pi_{\theta})$.
+
+\noindent
+\textbf{TODO:} Rerun training (commenting out the clipped loss), plot the generated curves below and include the final training performance.
+
+\noindent
+\textbf{Reflection:} Which approach seems to yield more stable training in your runs—clipping or KL penalty? What advantages and drawbacks do you notice in each case?
+
+\paragraph{Command (15 min):}
+You must comment out the Problem 1.1.1 code (PPO Clipped Surrogate Objective Loss) before running this command.
+\begin{verbatim}
+python runner.py --agent ppo
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\clearpage
+\newpage
+
+\subsection*{Problem 1.5: Experiment – Clipping Threshold}
+
+The clipping threshold $\epsilon$ directly controls how conservative PPO’s updates are. In this section, you will vary $\epsilon$ and observe how training behavior changes. For these experiments you can use the \texttt{--clip\_coef} argument to \texttt{runner.py} to start trainings with different clipping thresholds.
+
+\textbf{For all of these experiments, comment out the KL divergence loss and go back to using the clipped objective.}
+
+\subsubsection*{Problem 1.5.1: High Clipping Threshold}
+Rerun training with larger clipping threshold (0.3). Insert the plots here, and report the final environment returns.  Explain how the learning dynamics differ from Section 1.4.1. Why might larger $\epsilon$ lead to this behavior? Does a higher threshold make the algorithm behave more or less like the vanilla policy gradient method? What trade-offs do you observe?
+
+\paragraph{Command (15 min):}
+\begin{verbatim}
+python runner.py --agent ppo --clip_coef 0.3
+\end{verbatim}
+
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsubsection*{Problem 1.5.3: Low Clipping}
+Rerun training with a smaller clipping threshold ($0.05$). Insert the plots here, and report the final environment returns.  Discuss how the learning dynamics differ from Section 1.4.1. What does this tell you about the role of clipping in stabilizing updates? How does lowering the clipping threshold affect stability and final performance? What behavior would you expect in higher-dimensional or more complex environments?
+
+\paragraph{Command (15 min):}
+\begin{verbatim}
+python runner.py --agent ppo --clip_coef 0.05
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\newpage
+\subsection*{Problem 1.6: Experiment – Off-Policy PPO}
+
+So far, PPO has been trained in an on-policy manner: the buffer only provides samples from the current policy iteration. Here, you will relax this constraint by allowing the buffer to sample from all stored trajectories, including older ones.
+
+\textbf{For all of these experiments, comment out the KL divergence loss and go back to using the clipped objective.}
+
+\subsubsection*{Problem 1.6.1 - Full Off-Policy PPO}
+Modify your sampling logic so that you pull a batch from the full dataset rather than only the current iteration (it is okay if this sampling includes some data from the current policy). Rerun training, insert the resulting plots, report final return, and compare against Section 1.4.1. How does using off-policy data affect training stability and overall performance? What might explain the differences you observe compared to strictly on-policy PPO?  What changes could you make to get better performance while still using off-policy data?
+
+\paragraph{Command (15 min):} Before running this command, change your logic for sampling batches.  This is located in \texttt{PPOAgent.\_perform\_update(...)}
+\begin{verbatim}
+python runner.py --agent ppo
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+\subsubsection*{Problem 1.6.2 - Half Off-Policy PPO}
+Modify your sampling logic so that half of your batch is sampled from the full dataset and half from is sampled from the current iteration.  Rerun training, insert the resulting plots, report final return, and compare against Section 1.4.1 and Section 1.6.1. How does the inclusion of more on-policy data affect the training stability and overall performance?  What might explain any differences you notice between these graphs and section 1.6.1?
+
+\paragraph{Command (15 min):} Before running this command, change your logic for sampling batches.  This is located in \texttt{PPOAgent.\_perform\_update(...)}
+\begin{verbatim}
+python runner.py --agent ppo
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+
+% \subsection*{Problem 1.4: Experiment - Clipped Objective vs. KL Objective}
+
+% In PPO, the goal is to constrain how much the new policy $\pi_\theta$ is allowed to deviate from the old policy $\pi_{\theta_{\text{old}}}$.  In the first sections, we implemented this by clipping the 
+
+
+% \subsubsection*{Problem 1.4.1: Clipped Objective}
+% This is the function that you initial implemented in section 1.1.1.  For here, you can just run the training code and plot the curves that are generated using all of the default hyperparameter.  If your implementation is correct, your final reward should be over 200.  There is a good amount of variance in the training, so do not worry about the oscillation of the returns.  However, you should hopefully see the MA(50) be close to 200 on the plotted graph, and if your best performing policy does not achieve a return of 200 then you have a mistake in your code.  You are free to change hyperparameter, but this code has been test with the default seeds and hyperparameter.
+
+% \textbf{TODO:} Please add the training plots here and report your final 
+
+% \subsubsection*{Problem 1.4.2: KL Objective}
+
+% In PPO, the goal is to constrain how much the new policy $\pi_\theta$ is allowed to deviate from the old policy $\pi_{\theta_{\text{old}}}$. While we initially implemented a clipped loss, another natural way to enforce this constraint is using KL divergence. KL divergence $D_{KL}(\pi_{\theta_{\text{old}}}(\cdot|s) \| \pi_\theta(\cdot|s))$ is a metric for measuring the dissimilarity between two probability distributions.
+
+% The KL-penalized objective, as presented in Equation 8 of the PPO paper, is:
+% \begin{equation}
+% L^{KLPEN}(\theta) = \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)} \hat{A}_t - \beta D_{KL}[\pi_{\theta_{\text{old}}}(\cdot|s_t), \pi_\theta(\cdot|s_t)] \right]
+% \end{equation}
+
+% where $\hat{A}_t$ is the advantage estimate at time $t$, and $\beta$ is a hyperparameter that controls the strength of the KL penalty.  With this objective, a large KL divergence between the old policy and the new policy is penalized.
+
+% Please implement the KL divergence loss objective in the loss function under problem 1.4.2.
+
+% \textbf{TODO:} After implementing, please rerun the training with the KL divergence loss (comment out the clipped loss).  And plot the training curves below.
+
+
+% \subsection*{Problem 1.5: Experiment - Clipping Threshold}
+
+% \subsubsection*{Problem 1.5.1: Standard Clipping Threshold}
+% \textbf{TODO:} Please just copy the training graphs from 1.4.1 here for the sake of comparison.
+
+% \subsubsection*{Problem 1.5.2: High Clipping Threshold}
+% \textbf{TODO:}  Please rerun the training, but this time with a high clipping threshold.  Paste the training graphs here.  Explain how this looks different from 1.5.1 and reason about why this might be the case.
+
+% \subsubsection*{Problem 1.5.3: No Clipping Threshold}
+% \textbf{TODO:}  Please rerun the training, but this time set the clipping threshold to 0.  Paste the training graphs here.  Explain how this looks different from 1.5.1 and reason about why this might be the case.
+
+% \subsection*{Problem 1.6: Experiment - Off Policy PPO}
+% \textbf{TODO:}  Please rerun the training, but this do allow the buffer to sample from all data points.  Paste the training graphs here.  Explain how this looks different from 1.4.1 and reason about why this might be the case.
+
+% \newpage
+
+
+\newpage
+
+
+\section*{Problem 2: Twin Delayed DDPG - TD3 (35 pts)}
+
+Begin by reading the TD3 paper (\url{https://arxiv.org/abs/1802.09477}) to familiarize yourself with the method you will implement.
+
+In Homework 2, you implemented DQN and Double DQN for discrete action spaces, and saw how Double DQN reduced the overestimation bias of vanilla DQN. TD3 extends these Q-learning ideas to continuous action spaces by building on Deep Deterministic Policy Gradient (DDPG). Whereas DQN evaluates a finite set of discrete actions with a Q-function, DDPG uses an actor-critic framework: the actor outputs continuous actions, and the critic estimates their Q-values. However, plain DDPG is often unstable and still suffers from overestimation.
+
+TD3 introduces three modifications that parallel lessons from DQN and Double DQN:
+\begin{itemize}
+    \item \textbf{Twin critics:} Two Q-networks are trained in parallel, and the minimum of their predictions is used for updates. This “double” trick reduces overestimation bias.
+    \item \textbf{Delayed policy updates:} The actor (policy) is updated less frequently than the critics, so policy improvements are based on more accurate Q-estimates.
+    \item \textbf{Target policy smoothing:} Noise is added to target actions when computing Q-targets, preventing the critic from overfitting to narrow Q-function peaks.
+\end{itemize}
+
+Together, these changes yield more stable and reliable training in continuous control tasks. Conceptually, TD3 is the continuous-action successor to Double DQN, combining Q-learning stabilization techniques with an actor-critic architecture. \\
+\noindent
+All of your code for this problem will be written in \texttt{td3\_agent.py}.
+
+\subsection*{TD3 Algorithm}
+\begin{algorithm}
+\caption{TD3 Algorithm (Canonical)}
+\begin{algorithmic}[1]
+\State Initialize deterministic actor \(\mu_\theta\), critics \(Q_{\phi_1},Q_{\phi_2}\), targets, replay \(\mathcal{D}\)
+\For{each environment step}
+  \State Select action \(a_t=\text{clip}(\mu_\theta(s_t)+\epsilon, a_{min},a_{max}),\ \epsilon\sim\mathcal{N}(0,\sigma^2)\)
+  \State Step env; store \((s_t,a_t,r_t,s_{t+1},d_t)\in\mathcal{D}\)
+  \If{ready to update}
+    \State Sample batch; compute target action \(\tilde a' = \text{clip}(\mu_{\theta'}(s')+\epsilon',\, a_{\min},\, a_{\max})\), \(|\epsilon'|\le c\)
+    \State Target: \(y=r+\gamma(1-d)\min\{Q'_{1}(s',\tilde a'),Q'_{2}(s',\tilde a')\}\)
+    \State Update critics: minimize \(\sum_i \|Q_{\phi_i}(s,a)-y\|^2\)
+    \If{update iteration \(\%\) \texttt{policy\_delay} == 0}
+      \State Update actor: minimize \(-\mathbb{E}[Q_{\phi_1}(s, \mu_\theta(s))]\)
+      \State Soft-update actor/critic targets with \(\tau\)
+    \EndIf
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+
+
+% \subsection*{Problem 3.1: Initialization}
+% Create a deterministic actor (we use the tanh-Gaussian module's \texttt{mean\_action} as a deterministic policy), twin critics \(Q_1, Q_2\), their target networks, and Adam optimizers. See \texttt{td3\_agent.py}.
+% \\\textit{Relevant functions:} \texttt{td3\_agent.py: TD3Core.__init__}, \texttt{policies.Actor}, \texttt{buffer.Buffer}.\\
+% \textit{Hint:} Initialize target networks by copying main network weights (\texttt{load\_state\_dict}). Use state-independent std for the actor and take \texttt{mean\_action}.
+
+\subsubsection*{Problem 2.1.1: Network Initialization}
+Lets start by implementing the network initialization in \texttt{TD3Agent.__init__(...)}.
+
+In TD3, you will maintain not only an actor and two critics, but also corresponding \emph{target networks} for each. The role of these target networks is to stabilize training when bootstrapping. Recall that bootstrapping means constructing a training target using the network’s own predictions for future states. If the same networks you are updating are also used to generate these training targets, the target values shift every time you update, leading to instability. By using separate, slowly updated target networks to generate the bootstrapped training targets, TD3 ensures that the reference values change more gradually, making learning more stable.
+
+In this problem, you will set up the actor, two critics, and their corresponding target networks. Initialize the targets to match the online networks at the start of training. \\
+\textit{Hint:} Actors and Critics can be initialized as follows:
+
+\begin{minipage}{0.45\linewidth}
+\begin{lstlisting}[language=Python]
+Actor(
+    obs_dim=self.obs_dim,
+    act_dim=self.act_dim,
+    act_low=self.act_low,
+    act_high=self.act_high,
+    hidden=(64, 64),
+).to(self.device)
+\end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\linewidth}
+\begin{lstlisting}[language=Python]
+Critic(
+    self.obs_dim,
+    self.act_dim,
+    hidden=(64, 64)
+).to(self.device)
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection*{Problem 2.1.2: TD3 Target with Policy Smoothing}
+
+Next, implement the update step in \texttt{TD3Agent.\_td3\_update\_step(...)}.  
+In TD3, the target is computed using the target actor (with added noise for smoothing) and the element-wise minimum of the two target critics:  
+
+\begin{equation}
+\begin{aligned}
+y &= r + \gamma (1-d)\,
+      \min\!\Bigl( Q'_1(s', \tilde a'),\; Q'_2(s', \tilde a') \Bigr) \\[6pt]
+\tilde a' &= \text{clip}\!\Bigl( \mu'(s') + \epsilon,\; a_{\min},\; a_{\max} \Bigr) \\[6pt]
+\epsilon &\sim \mathcal{N}(0,\sigma^2), 
+\quad |\epsilon| \le c
+\end{aligned}
+\end{equation}
+
+Here \(\mu'\) denotes the target actor, \(Q'_1, Q'_2\) are the target critics, and \(\epsilon\) is Gaussian noise (clipped to a maximum magnitude \(c\)). This noise helps prevent the policy from overfitting to sharp peaks in the Q-function.
+
+\noindent\textit{Hints:} 
+\begin{itemize}
+    \item To get a deterministic action from actor network A, you can use \texttt{A(obs).mean_action}
+    \item Sample noise with \texttt{torch.randn\_like}, scale it by \texttt{self.policy\_noise}, and clamp to \([\,-\texttt{self.noise\_clip},\,\texttt{self.noise\_clip}\,]\).
+    \item Clamp resulting actions to \texttt{(self.act\_low, self.act\_high)}.
+\end{itemize}
+
+\subsubsection*{Problem 2.1.3: Critic Update}
+Minimize the sum of MSE losses of both critics against \(y\) with a single optimizer step. Make sure to zero grad the critic optimizer before calling backwards, then stepping. 
+
+\begin{equation}
+\mathcal{L}_Q = \mathbb{E}\big[(Q_1(s,a)-y)^2 + (Q_2(s,a)-y)^2\big].
+\end{equation}
+\\
+\\ This will be implemented in \texttt{TD3Agent.\_td3\_update\_step} (critic block).
+
+\subsubsection*{Problem 2.1.4: Actor Update (Delayed)}
+Every \texttt{policy\_delay} steps, update the actor to maximize the Q-value estimated by the first critic:
+\begin{equation}
+\textstyle \mathcal{L}_\pi = -\mathbb{E}_s\,[Q_1(s, \mu_\theta(s))].
+\end{equation}
+
+After updating the actor, also apply soft updates to all target networks (actor and critics). You should be making calls to \texttt{self.\_soft\_update}, but soft update rule itself will be implemented in the next problem.  \\
+Implement this in \texttt{TD3Agent.\_td3\_update\_step} (actor block).
+
+\subsubsection*{Problem 2.1.5: Polyak Target Updates}
+After each action update, softly update target networks using Polyak averaging. For parameters \(\theta\) (online network) and \(\theta'\) (target network), the update is
+\begin{equation}
+\theta' \leftarrow (1-\tau)\,\theta' + \tau\,\theta,
+\end{equation}
+where \(\tau \in (0,1]\) controls how fast the target tracks the online network.  
+
+Implement this in \texttt{TD3Agent.\_soft\_update}.  \\
+\textit{Hint:} Use \texttt{torch.no\_grad()} and iterate with \texttt{zip(params, target\_params)}.
+
+% \subsubsection*{Problem 2.1.4: Actor Update (Delayed)}
+% Every \texttt{policy\_delay} steps, update the actor by maximizing Q via
+% \begin{equation}
+% \textstyle \mathcal{L}_\pi = -\mathbb{E}_s\,[Q_1(s, \mu_\theta(s))].
+% \end{equation}
+% Then, perform target network soft updates when the actor updates on the critic and actor networks. You will implement the soft updates in the next problem. \\
+% This will be implemented in \texttt{TD3Agent._td3\_update\_step} (actor block).\\
+
+
+% \subsubsection*{Problem 2.1.5: Polyak Target Updates}
+% After each update, softly update target critics with rate \(\tau\):
+% \begin{equation}
+% \textstyle \theta' \leftarrow (1-\tau)\,\theta' + \tau\,\theta.
+% \end{equation}
+% \\
+% Do this for each target critic where $\tau$ is the target critic network parameters and $\theta'$ is the critic network parameters. \\
+% You should implement this within  \texttt{TD3Agent._soft\_update\_}. \\
+% \textit{Hint:} Wrap in \texttt{torch.no\_grad()} and iterate \texttt{zip(params, target\_params)}.
+
+\subsection*{Problem 2.2: Exploration Noise with Actions}
+
+The actor in TD3 is deterministic, so without added noise, the policy will fail to explore. To address this, TD3 injects Gaussian noise into the actor’s output when interacting with the environment:
+\[
+a = \mu_\theta(s) + \epsilon, \qquad \epsilon \sim \mathcal{N}(0, \sigma^2).
+\]
+
+% This is implemented very similarly to the policy smoothing noise from the update rule: you sample Gaussian noise, clamp it, and add it to the action. The only difference is that this noise is applied during environment interaction (to promote exploration), whereas policy smoothing noise is applied during training updates (to stabilize targets).
+
+\noindent Implement this in \texttt{TD3Agent.act}: \\
+\textit{Hints:}
+\begin{itemize}
+    \item To get a deterministic action from actor network A, you can use \texttt{A(obs).mean_action}
+    \item Sample noise with \texttt{torch.randn\_like}, scale it by \texttt{self.exploration\_noise}.
+    \item Clamp the final action to \texttt{(self.act\_low, self.act\_high)} before returning it.
+\end{itemize}
+
+% \subsection*{Problem 2.2: Exploration Noise with Actions}
+% During environment interaction, add Gaussian noise to the actor's deterministic action and clamp to action bounds. TD3 is a deterministic policy, so without this added noise there would be no exploration during training.  You will implement this in the \texttt{TD3Agent.act} function. You can draw noise by calling \texttt{torch.randn_like} on action, then multiplying it by the exploration noise.
+% \\
+% \\Implement this in \texttt{TD3Core.act}.\\
+% \textit{Hint:} Clamp final action to env bounds (\texttt{self.act_low, self.act_high}).
+
+% \subsection*{Problem 2.3: Delayed Policy Updates}
+% Earlier, you implemented the Actor Update in the update step function. However, you know that the actor update is delayed - you will be setting these conditions. In \texttt{TD3Agent._perform_update}, you should implement when the actor updates. This should happen whenever the  parameter \texttt{(self.total\_steps \% self.update\_every) == 0}. Make sure you keep track of update counts.
+% Update critics every step; gate the actor/target updates by \texttt{policy\_delay} (typically 2).
+% \\\textit{Relevant functions:} \texttt{td3\_agent.py: TD3Agent._perform_update}.\\
+% \textit{Hint:} Maintain an update counter and set \texttt{do\_actor\_update = (counter \% policy\_delay)==0}.
+
+\subsection*{Problem 2.3: Delayed Policy Updates}
+
+In TD3, the critics are updated at every training step, but the actor (and target networks) are updated less frequently. This is controlled by the parameter \texttt{self.policy\_delay} (commonly set to 2). In practice, this means: update critics every time, and only update the actor and targets once every \texttt{self.policy\_delay} critic updates.
+
+You will implement this scheduling logic inside \texttt{TD3Agent.\_perform\_update}. 
+
+\textit{Hints:}
+\begin{itemize}
+    \item Use \texttt{self.update_count} to keep track of updates
+    \item Set a flag (\texttt{do\_actor\_update)}to indicate whether the actor should update on this step.
+    \item You \textbf{must} set \texttt{stats = self.\_td3\_update\_step(batch, do\_actor\_update)} for appropriate logging
+\end{itemize}
+
+% \[
+% \texttt{do\_actor\_update = (update\_count \% policy\_delay) == 0}.
+% \]
+
+% Pass this flag into \texttt{self.\_td3\_update\_step} so that the actor and target networks are only updated on the appropriate steps.
+
+% \noindent\textit{Relevant function:} \texttt{td3\_agent.py: TD3Agent.\_perform\_update}.  
+% \textit{Hint:} Maintain a counter of total update steps and gate the actor/target updates with the condition above.
+
+
+\subsection*{Problem 2.4: Environment Step Function (TD3Agent.step)}
+Implement \texttt{TD3Agent.step(self, transition)} using the TD3 rules:
+\begin{itemize}
+  \item Add transitions to buffer and maintain \texttt{self.total\_steps} (this is done for you).
+  \item Don't update when \texttt{self.warmup\_steps} or \texttt{self.batch_size} is larger than the buffer size
+  \item Otherwise, update every \texttt{self.update\_every} steps
+  \item If not updating, return an empty dictionary
+\end{itemize}
+
+\subsection*{Problem 2.5: TD3 Evaluation}
+
+Run the TD3 agent code with the default hyperparameters and plot the resulting learning curves.  In your solution, include both the generated plots and the reported final performance.
+
+If your implementation is correct, the moving-average return (MA(50)) should approach
+or exceed 200 by the end of training. Note that the raw returns will be noisy, so do not
+be concerned about short-term oscillations. If your best-performing policy never reaches a
+return of 200, that indicates a mistake in your code.
+You may experiment with hyper-parameters if you like, but the default values have been tested and are sufficient to achieve the expected performance.  
+
+Note - For TD3, you may not see positive returns until around 250000 iterations.
+
+\paragraph{Command (30 min):}
+\begin{verbatim}
+python runner.py --agent td3 --total_steps 500000
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsection*{Problem 2.5: Target Policy Smoothing}
+
+Run the TD3 agent code with \texttt{self.policy_noise == 0}. Run this and compare with baseline, why do you see the results you do? What role does target policy smoothing play? 
+
+In your solution, include both the generated plots and the reported final performance.
+
+\paragraph{Command (30 min):}
+\begin{verbatim}
+python runner.py --agent td3 --total_steps 500000 --policy_noise 0
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsection*{Problem 2.6: Policy Delay}
+
+Run the TD3 agent code with \texttt{self.policy_delay == 1, 4}. The baseline is 2. Run these versions and compare with baseline, why do you see the results you do? What role does setting the policy delay parameter play? 
+
+In your solution, include both the generated plots and the reported final performance.
+
+\paragraph{Command (30 min each):}
+\begin{verbatim}
+python runner.py --agent td3 --total_steps 500000 --delay 1
+python runner.py --agent td3 --total_steps 500000 --delay 4
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+% \noindent
+% Relevant objects/functions: \texttt{TD3Agent.step}, \texttt{TD3Core.update}, \texttt{_ReplayAdapter.add}.
+
+% \subsubsection*{Problem 3.7.2: Update Function (TD3Core._td3\_update\_step)}
+% Implement \texttt{TD3Core._td3\_update\_step(self, batch, do\_actor\_update)} and its scheduler:
+% \begin{itemize}
+%   \item Targets (3.2): \texttt{_target\_q} uses \texttt{target\_actor.mean\_action} with clipped Gaussian policy noise (\texttt{policy\_noise}, \texttt{noise\_clip}); clamp actions to bounds; take elementwise \(\min\) over target critics.
+%   \item Critics (3.3): sum MSE losses of both critics vs \(y\); single optimizer \texttt{self.critic\_opt} over concatenated parameters.
+%   \item Delayed actor (3.4): if \texttt{do\_actor\_update}, minimize \(-\mathbb{E}[Q_1(s,\mu_\theta(s))]\), then Polyak update actor and both critics' targets via \texttt{_soft\_update\_} with rate \(\tau\).
+%   \item Delay gating (3.7): inside \texttt{TD3Core.update}, maintain \texttt{self._update\_it} and set \texttt{do\_actor\_update = (self._update\_it \% self.policy\_delay) == 0}.
+% \end{itemize}
+% \noindent
+% Training-time noise names reflect the code: \texttt{policy\_noise}, \texttt{noise\_clip}, \texttt{exploration\_noise}.
+
+% \paragraph{Default Parameters for TD3 - you are free to change these, but should not be necessary to achieve the target results.}
+% \begin{verbatim}
+% python3 runner.py --agent td3 --env_id LunarLanderContinuous-v3 \
+%   --total_steps 500000 --buffer_size 100000 --warmup_steps 5000 \
+%   --batch_size 128 --update_every 1 --policy_noise 0.2 --noise_clip 0.5 \
+%   --exploration_noise 0.1
+% \end{verbatim}
+
+\newpage
+
+% \section*{Problem 3: Soft Actor-Critic - SAC (15 pts)}
+
+% Soft Actor-Critic (SAC) is an off-policy, maximum-entropy actor-critic method. The paper for this method can be found here: https://arxiv.org/abs/1801.01290. It augments the standard RL objective with an entropy bonus to encourage exploration and robustness. In this assignment, you will implement SAC in \texttt{sac_agent.py} following the structure below and perform a few controlled operations. The overall runner file will stay the same, so you can follow similar logic to the previous PPO section for agent/overall layout.
+\section*{Problem 3: Soft Actor-Critic - SAC (15 pts)}
+
+Begin by reading the SAC paper (\url{https://arxiv.org/abs/1801.01290}) to familiarize yourself with the method you will implement.
+
+SAC is an off-policy actor-critic algorithm that combines ideas from both the policy gradient family (HW1: REINFORCE, A2C, PPO) and the Q-learning family (HW2: DQN, Double DQN, TD3). Like TD3, it uses twin critics to reduce overestimation bias and target networks to stabilize bootstrapped updates. From the policy gradient side, SAC inherits the idea of training a stochastic policy with gradients, rather than a deterministic actor. This stochasticity is built directly into the objective through an \textbf{entropy bonus}, which encourages the policy to remain diverse rather than collapsing to a single action too quickly.
+
+
+The SAC objective balances two terms:
+\begin{itemize}
+    \item \textbf{Expected return:} As in other actor-critic methods, the policy is trained to maximize predicted Q-values.
+    \item \textbf{Entropy maximization:} The policy is simultaneously trained to maximize entropy, i.e., to act as randomly as possible while still pursuing reward. This leads to more robust policies and improved exploration.
+\end{itemize}
+
+
+All of your code for this problem will be written in \texttt{sac\_agent.py}.  
+
+You will be able to reuse much of the structure from TD3, as SAC borrows many of the same components (twin critics, target networks, off-policy updates) while extending them with a stochastic actor and entropy maximization.
+
+\subsection*{SAC Algorithm}
+\begin{algorithm}
+\caption{SAC Algorithm}
+\begin{algorithmic}[1]
+\State Initialize actor \(\pi_\theta\), critics \(Q_{\phi_1}, Q_{\phi_2}\), targets \(\phi'_i\leftarrow\phi_i\), replay \(\mathcal{D}\)
+\For{each environment step}
+  \State Select action \(a_t\sim\pi_\theta(\cdot|s_t)\); execute in env; store \((s_t,a_t,r_t,s_{t+1},d_t)\in\mathcal{D}\)
+  \If{warmup complete and update is due}
+    \For{$k=1$ to UTD ratio}
+      \State Sample batch from \(\mathcal{D}\); compute target \(y=r+\gamma(1-d)[\min Q' - \alpha\log\pi]\)
+      \State Update critics by minimizing \(\sum_i \|Q_{\phi_i}(s,a)-y\|^2\)
+      \State Update actor by minimizing \(\alpha\,\log\pi_\theta(a|s) - \min_i Q_{\phi_i}(s,a)\)
+      \State (Optional) Update temperature \(\alpha\)
+      \State Soft-update targets: \(\phi'_i\leftarrow (1-\tau)\phi'_i + \tau\phi_i\)
+    \EndFor
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\subsection*{Problem 3.1: SAC Implementation}
+\subsubsection*{Problem 3.1.1: Network Initialization}
+
+Let’s begin by implementing the network initialization in \texttt{SACAgent.\_\_init\_\_(...)}.
+
+SAC, like TD3, uses twin critics with corresponding \emph{target networks} to stabilize training when bootstrapping. However, unlike TD3, SAC’s actor is \emph{stochastic}: it outputs both a mean and a standard deviation for the action distribution. This allows SAC to directly optimize entropy as part of its objective, encouraging diverse exploration. Because of this, we actually do not need to maintain a target actor network.
+
+\textit{Hint:}  We can initialize actors and critics in the same way as TD3.  For deterministic actions in TD3, we were just taking the mean action from the actor.  But our actor implementation naturally allows for sampling stochastic actions (feel free to check the implementation in \texttt{policies.py}).
+
+\begin{minipage}{0.45\linewidth}
+\begin{lstlisting}[language=Python]
+Actor(
+    obs_dim=self.obs_dim,
+    act_dim=self.act_dim,
+    act_low=self.act_low,
+    act_high=self.act_high,
+    hidden=(64, 64),
+).to(self.device)
+\end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\linewidth}
+\begin{lstlisting}[language=Python]
+Critic(
+    self.obs_dim,
+    self.act_dim,
+    hidden=(64, 64)
+).to(self.device)
+\end{lstlisting}
+\end{minipage}
+
+\subsubsection*{Problem 3.1.2: Soft Bellman Target}
+You will be implementing the update step in this homework.
+SAC uses a soft bellman target to train the Q-function - this target incorporates a minimum between the twin value networks and subtracts a baseline term that incorporates temperature that increases/decreases exploration.
+Compute the soft target with entropy term:
+\begin{equation}
+\textstyle y = r + \gamma(1-d)\Big[\min\big(Q'_1(s', a'), Q'_2(s', a')\big) - \alpha\, \log \pi_\theta(a'|s')\Big],
+\end{equation}
+where \(a'\sim\pi_\theta(\cdot|s')\) is drawn using \texttt{rsample()} (reparameterization) or set to the policy mean. Make sure to clamp the action log probability to the bounds [-20,20]. \\Implement this in the \texttt{SACAgent.sac\_update\_step} (soft bellman target block). \\
+
+\subsubsection*{Problem 3.1.3: Critic Update}
+Continuing the update step implementation, you will code the critic update. The critic update in SAC minimizes the sum of MSE losses for both critics against \(y\):
+\begin{equation}
+\mathcal{L}_Q = \mathbb{E}\big[(Q_1(s,a)-y)^2 + (Q_2(s,a)-y)^2\big].
+\end{equation}
+Backprop once over the concatenated critic parameters and step the optimizer. Make sure that you zero-grad the optimizer before calling backward(). You should also use \texttt{clip_grad_norm} on the critic1 and critic2 parameters, setting max norm to 1.0.
+\\ Implement this in \texttt{SACAgent.sac\_update\_step} (critic block).
+
+\subsubsection*{Problem 3.1.4: Actor Update}
+Contininuing in the \texttt{SACAgent.sac\_update\_step} function, you will implement the update for the actor as well.
+
+The formula looks this:
+\begin{equation}
+\mathcal{L}_\pi = \mathbb{E}_{s\sim\mathcal{D},\,\epsilon}\Big[\alpha\,\log\pi_\theta(a|s) - \min(Q_1(s,a), Q_2(s,a))\Big],\quad a=\pi_\theta(s;\epsilon).
+\end{equation}
+Make sure you clamp the log probabilities using the bounds [-20, 20]. Also, make sure to take the mean of the expression inside of the expected value to get the correct value in the code. Please make sure to also use \texttt{clip_grad_norm} on the actor parameters to max norm value of 1.0. 
+
+\subsubsection*{Problem 3.1.5: Polyak Target Updates}
+After each update, softly update target critics.  For parameters \(\theta\) (online network) and \(\theta'\) (target network), the update is:
+\begin{equation}
+\theta' \leftarrow (1-\tau)\,\theta' + \tau\,\theta,
+\end{equation}
+where \(\tau \in (0,1]\) controls how fast the target tracks the online network. This is the same update that we see in TD3. \\
+You should implement this within  \texttt{SACAgent._soft\_update\_}. \\
+Call this soft target update after the existing updates in \texttt{SACAgent._sac_update_step}.\\
+\textit{Hint:} Use \texttt{torch.no\_grad()} and iterate with \texttt{zip(params, target\_params)}.
+
+\subsection*{Problem 3.2: Environment Step}
+Implement \texttt{SACAgent.step(self, transition)} using the SAC rules:
+\begin{itemize}
+  \item Add transitions to buffer and maintain \texttt{self.total\_steps} (this is done for you).
+  \item Don't update when \texttt{self.warmup\_steps} or \texttt{self.batch_size} is larger than the buffer size
+  \item Otherwise, update every \texttt{self.update\_every} steps
+  \item If not updating, return an empty dictionary
+\end{itemize}
+
+\noindent
+Implement this in the \texttt{SACAgent.step} function.
+
+\subsection*{Problem 3.3: SAC Evaluation}
+
+Run the SAC agent code with the default hyperparameters and plot the resulting learning curves.
+If your implementation is correct, the moving-average return (MA(50)) should approach
+or exceed 200 by the end of training. Note that the raw returns will be noisy, so do not
+be concerned about short-term oscillations. If your best-performing policy never reaches a
+return of 200, that indicates a mistake in your code.
+You may experiment with hyperparameters if you like, but the provided defaults (includ-
+ing seeds) have been tested and are sufficient to achieve the expected performance.
+
+\paragraph{Command (40 min):}
+\begin{verbatim}
+python runner.py --agent sac --total_steps 500000
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsection*{Problem 3.4 UTD ratio}
+Experiment with the number of gradient steps per environment step.  This can be controlled with \texttt{--utd\_ratio N}. Analyze sample efficiency vs. stability and wall-clock when comparing to the baseline in 3.3 when running with utd = 2 and utd = 4.  In your solution include the generated plots, the final environment return, and the total run time. Note the lower number of total steps to help save some time, so keep this in mind when comparing to 3.3.
+
+\paragraph{Command (40 min):}
+\begin{verbatim}
+python runner.py --agent sac --total_steps 300000 --utd_ratio 2
+python runner.py --agent sac --total_steps 300000 --utd_ratio 4
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+\subsection*{Problem 3.5: Backup Action}
+
+In \texttt{SACAgent.act()}, change the action generation to deterministic action generation (using \texttt{self.actor(obs_t).mean\_action}). How does taking the mean action affect performance? Plot and write one to two sentences on the differences and explain why, when comparing to 3.3 baseline.
+
+\paragraph{Command (40 min):} Before running this command, make sure to change the action generation in  \texttt{SACAgent.act()}.
+\begin{verbatim}
+python runner.py --agent sac --total_steps 500000
+\end{verbatim}
+
+\begin{solution}[height=5cm]
+% TODO: Put your figures
+% YOUR SOLUTION
+\end{solution}
+
+% \paragraph{What to report} Keep seeds and total steps fixed across conditions. Plot episode returns, actor/critic losses, Q-values, evaluation curves; discuss bias/variance and compute trade-offs.
+
+% \paragraph{Suggested command}
+% \begin{verbatim}
+% python3 runner.py --agent sac --env_id LunarLanderContinuous-v3 \
+%   --total_steps 200000 --buffer_size 100000 --warmup_steps 1000 \
+%   --batch_size 128 --update_every 1 --utd_ratio 1 --seed 1
+% \end{verbatim}
+
+
+\newpage
+
+\section*{Problem 4: Feedback}
+
+\textbf{Feedback}: You can help the course staff improve the course by providing feedback. What was the most confusing part of this homework, and what would have made it less confusing?
+
+\begin{tcolorbox}[fit,height=10em, width=40em, blank, borderline={1pt}{1pt},nobeforeafter]
+            \begin{center}
+            %YOUR SOLUTION HERE%
+            \end{center}
+            \end{tcolorbox}\\
+
+\noindent\textbf{Time Spent}: How many hours did you spend working on this assignment? Your answer will not affect your grade.
+
+\begin{tcolorbox}[fit,height=10em, width=40em, blank, borderline={1pt}{1pt},nobeforeafter]
+\begin{table}[H]
+    \centering
+    \begin{tabular}{r|c}
+        Alone &  \hspace{3em} %ANSWER HERE%
+        \\ \hline
+        With teammates & \hspace{3em} %ANSWER HERE%
+        \\ \hline
+        With other classmates & \hspace{3em} %ANSWER HERE%
+        \\ \hline
+        At office hours & \hspace{3em} %ANSWER HERE%
+        \\ \hline
+    \end{tabular}
+\end{table}
+\end{tcolorbox}
+
+
+\end{document}
