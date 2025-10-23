@@ -1,0 +1,19 @@
+name: f25-703-HW4
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - gymnasium=0.29.1
+  - box2d-py
+  - pygame
+  - pytorch>=2.0.1
+  - numpy
+  - matplotlib
+  - tqdm
+  - pillow
+  - pip
+  - imageio
+  - pip:
+    - diffusers
